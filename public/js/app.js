@@ -1,10 +1,12 @@
 /* ═══════════════════════════════════════════════
    Shared JS Utilities — LinkGuard
 ═══════════════════════════════════════════════ */
+// Use environment variable if transformed by a bundler, otherwise fallback to empty (relative) or a global config
+const BASE_URL = (typeof process !== 'undefined' && process.env.BASE_URL) || (typeof window !== 'undefined' && window.API_BASE_URL) || "";
 
 const API = {
   async shorten(url) {
-    const res = await fetch('/api/shorten', {
+    const res = await fetch(`${BASE_URL}/api/shorten`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url })
@@ -13,22 +15,22 @@ const API = {
   },
 
   async check(shortCode) {
-    const res = await fetch(`/api/check/${shortCode}`);
+    const res = await fetch(`${BASE_URL}/api/check/${shortCode}`);
     return res.json();
   },
 
   async stats(shortCode) {
-    const res = await fetch(`/api/stats/${shortCode}`);
+    const res = await fetch(`${BASE_URL}/api/stats/${shortCode}`);
     return res.json();
   },
 
   async links() {
-    const res = await fetch('/api/links');
+    const res = await fetch(`${BASE_URL}/api/links`)
     return res.json();
   },
 
   async deleteLink(shortCode) {
-    const res = await fetch(`/api/links/${shortCode}`, { method: 'DELETE' });
+    const res = await fetch(`${BASE_URL}/api/links/${shortCode}`, { method: 'DELETE' });
     return res.json();
   }
 };

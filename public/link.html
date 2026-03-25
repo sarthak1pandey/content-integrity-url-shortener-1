@@ -243,9 +243,8 @@
       document.getElementById('baselineHashFull').textContent = hash;
 
       // API endpoints
-      const base = window.location.origin;
-      document.getElementById('api-check').textContent = `${base}/api/check/${shortCode}`;
-      document.getElementById('api-stats').textContent = `${base}/api/stats/${shortCode}`;
+      document.getElementById('api-check').textContent = `${BASE_URL}/api/check/${shortCode}`;
+      document.getElementById('api-stats').textContent = `${BASE_URL}/api/stats/${shortCode}`;
 
       // Modification history
       const modContainer = document.getElementById('modHistory');
