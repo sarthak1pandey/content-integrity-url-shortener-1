@@ -3,7 +3,7 @@ const { fetchAndNormalize } = require('./crawler');
 const { sha256, generateShortCode, now, validateAndNormalizeUrl, hashPreview } = require('./utils');
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
-
+console.log("DEBUG BASE_URL =", process.env.BASE_URL);
 /**
  * Create a new short link with content integrity snapshot.
  */
