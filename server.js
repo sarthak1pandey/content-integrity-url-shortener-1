@@ -2,8 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
-const { initDB } = require('./src/database');
+const { supabase, initDB } = require('./src/database');
 const {
   createShortLink,
   checkIntegrity,
@@ -75,9 +76,9 @@ app.get('/api/check/:shortCode', async (req, res) => {
  * GET /api/stats/:shortCode
  * Get full statistics for a link including modification history.
  */
-app.get('/api/stats/:shortCode', (req, res) => {
+app.get('/api/stats/:shortCode', async (req, res) => {
   try {
-    const result = getLinkStats(req.params.shortCode);
+    const result = await getLinkStats(req.params.shortCode);
 
     if (!result) {
       return res.status(404).json({ error: 'Short link not found.' });
@@ -94,10 +95,10 @@ app.get('/api/stats/:shortCode', (req, res) => {
  * GET /api/links
  * Get all links for the dashboard.
  */
-app.get('/api/links', (req, res) => {
+app.get('/api/links', async (req, res) => {
   try {
-    const links = getAllLinks();
-    const stats = getGlobalStats();
+    const links = await getAllLinks();
+    const stats = await getGlobalStats();
     res.json({ success: true, data: { links, stats } });
   } catch (err) {
     console.error('Error fetching links:', err.message);
@@ -109,9 +110,9 @@ app.get('/api/links', (req, res) => {
  * DELETE /api/links/:shortCode
  * Delete a short link.
  */
-app.delete('/api/links/:shortCode', (req, res) => {
+app.delete('/api/links/:shortCode', async (req, res) => {
   try {
-    deleteLink(req.params.shortCode);
+    await deleteLink(req.params.shortCode);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -129,6 +130,21 @@ app.get('/api/health', (req, res) => {
     invention: 'Content-Integrity-Aware URL Shortener',
     inventor: process.env.INVENTOR_NAME || 'Sarthak Pandey, VIT Vellore'
   });
+});
+
+/**
+ * GET /api/demo-target
+ * A completely un-cached local endpoint you can safely use to test the integrity check!
+ * It reads from `data/demo.txt`. Edit that file and the integrity check will instantly detect it.
+ */
+app.get('/api/demo-target', (req, res) => {
+  const demoFilePath = path.join(__dirname, 'data', 'demo.txt');
+  if (!fs.existsSync(demoFilePath)) {
+    fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
+    fs.writeFileSync(demoFilePath, '<h1>Patent Demo Local Target</h1><p>Change this text to trigger a modification!</p>');
+  }
+  const content = fs.readFileSync(demoFilePath, 'utf8');
+  res.send(`<html><body><article>${content}</article></body></html>`);
 });
 
 // ════════════════════════════════════════

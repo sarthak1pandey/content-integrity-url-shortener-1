@@ -1,4 +1,4 @@
-const { db } = require('./database');
+const { supabase } = require('./database');
 const { fetchAndNormalize } = require('./crawler');
 const { sha256, generateShortCode, now, validateAndNormalizeUrl, hashPreview } = require('./utils');
 
@@ -6,69 +6,64 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
 /**
  * Create a new short link with content integrity snapshot.
- *
- * Process:
- * 1. Validate and normalize the URL
- * 2. Fetch the destination page
- * 3. Run normalization pipeline
- * 4. Compute SHA-256 hash of normalized content
- * 5. Store everything in database
- * 6. Return short link details
  */
 async function createShortLink(rawUrl) {
-  // Validate URL
   const url = validateAndNormalizeUrl(rawUrl);
 
-  // Check if URL was already shortened (return existing record)
-  const existing = db.prepare(
-    'SELECT * FROM links WHERE originalUrl = ?'
-  ).get(url);
+  const { data: existing } = await supabase
+    .from('links')
+    .select('*')
+    .eq('originalUrl', url)
+    .single();
 
   if (existing) {
     return formatLinkResponse(existing, true);
   }
 
-  // Fetch and normalize the destination page content
   const content = await fetchAndNormalize(url);
-
-  // Compute the baseline cryptographic hash
   const baselineHash = sha256(content.text);
 
-  // Generate unique short code
   let shortCode;
   let attempts = 0;
+  let isUnique = false;
   do {
     shortCode = generateShortCode();
     attempts++;
     if (attempts > 10) throw new Error('Could not generate unique short code');
-  } while (db.prepare('SELECT 1 FROM links WHERE shortCode = ?').get(shortCode));
+    
+    // Check uniqueness
+    const { data } = await supabase.from('links').select('shortCode').eq('shortCode', shortCode).single();
+    if (!data) {
+      isUnique = true;
+    }
+  } while (!isUnique);
 
   const createdAt = now();
 
-  // Store in database
-  db.prepare(`
-    INSERT INTO links (shortCode, originalUrl, title, baselineHash, contentLength, createdAt, lastCheckedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(shortCode, url, content.title, baselineHash, content.contentLength, createdAt, createdAt);
+  const { data: record, error } = await supabase
+    .from('links')
+    .insert([{
+      shortCode,
+      originalUrl: url,
+      title: content.title,
+      baselineHash,
+      contentLength: content.contentLength,
+      createdAt,
+      lastCheckedAt: createdAt
+    }])
+    .select()
+    .single();
 
-  const record = db.prepare('SELECT * FROM links WHERE shortCode = ?').get(shortCode);
+  if (error) throw error;
+
   return formatLinkResponse(record, false);
 }
 
 /**
  * Check integrity of a link and return full integrity report.
- *
- * This is THE CORE INVENTION — executed on every click:
- * 1. Look up the baseline hash stored at creation time
- * 2. Re-fetch the destination page right now
- * 3. Re-run the normalization pipeline
- * 4. Compute fresh hash
- * 5. Compare: if hashes match → UNCHANGED; if different → MODIFIED
- * 6. Log the click; update modification count if changed
- * 7. Return full integrity report to the user
  */
 async function checkIntegrity(shortCode) {
-  const record = db.prepare('SELECT * FROM links WHERE shortCode = ?').get(shortCode);
+  const { data: record } = await supabase.from('links').select('*').eq('shortCode', shortCode).single();
   if (!record) return null;
 
   const checkedAt = now();
@@ -77,7 +72,10 @@ async function checkIntegrity(shortCode) {
   let freshTitle = record.title;
   let errorMessage = null;
 
-  // Re-fetch and re-hash the destination page
+  let newModificationCount = record.modificationCount;
+  let newLastModifiedAt = record.lastModifiedAt;
+  let newBaselineHash = record.baselineHash;
+
   try {
     const content = await fetchAndNormalize(record.originalUrl);
     freshHash = sha256(content.text);
@@ -88,65 +86,56 @@ async function checkIntegrity(shortCode) {
     } else {
       integrityStatus = 'MODIFIED';
 
-      // Log the modification to history
-      db.prepare(`
-        INSERT INTO modifications (shortCode, detectedAt, previousHash, newHash)
-        VALUES (?, ?, ?, ?)
-      `).run(shortCode, checkedAt, record.baselineHash, freshHash);
+      await supabase.from('modifications').insert([{
+        shortCode,
+        detectedAt: checkedAt,
+        previousHash: record.baselineHash,
+        newHash: freshHash
+      }]);
 
-      // Update the record with new modification count and latest hash
-      db.prepare(`
-        UPDATE links
-        SET modificationCount = modificationCount + 1,
-            lastModifiedAt = ?,
-            baselineHash = ?,
-            lastCheckedAt = ?
-        WHERE shortCode = ?
-      `).run(checkedAt, freshHash, checkedAt, shortCode);
+      newModificationCount = record.modificationCount + 1;
+      newLastModifiedAt = checkedAt;
+      newBaselineHash = freshHash;
     }
   } catch (err) {
     integrityStatus = 'CHECK_FAILED';
     errorMessage = err.message;
   }
 
-  // Update click count and last checked time
-  db.prepare(`
-    UPDATE links SET clickCount = clickCount + 1, lastCheckedAt = ?
-    WHERE shortCode = ?
-  `).run(checkedAt, shortCode);
+  // Update link record stats
+  await supabase.from('links').update({
+    modificationCount: newModificationCount,
+    lastModifiedAt: newLastModifiedAt,
+    baselineHash: newBaselineHash,
+    clickCount: record.clickCount + 1,
+    lastCheckedAt: checkedAt
+  }).eq('shortCode', shortCode);
 
   // Log this click
-  db.prepare(`
-    INSERT INTO clicks (shortCode, clickedAt, integrityStatus)
-    VALUES (?, ?, ?)
-  `).run(shortCode, checkedAt, integrityStatus);
+  await supabase.from('clicks').insert([{
+    shortCode,
+    clickedAt: checkedAt,
+    integrityStatus
+  }]);
 
-  // Fetch updated record
-  const updated = db.prepare('SELECT * FROM links WHERE shortCode = ?').get(shortCode);
+  const { data: updated } = await supabase.from('links').select('*').eq('shortCode', shortCode).single();
 
   return {
     shortCode,
     originalUrl: record.originalUrl,
     title: freshTitle || record.title,
     shortUrl: `${BASE_URL}/s/${shortCode}`,
-
-    // ── Integrity Report ──
-    integrityStatus,            // 'UNCHANGED' | 'MODIFIED' | 'CHECK_FAILED'
+    integrityStatus,
     hashMatch: freshHash ? (freshHash === record.baselineHash) : null,
-
-    // Hash values for display
     baselineHash: record.baselineHash,
     currentHash: freshHash || null,
     baselineHashPreview: hashPreview(record.baselineHash),
     currentHashPreview: freshHash ? hashPreview(freshHash) : null,
-
-    // Metadata
     createdAt: record.createdAt,
     checkedAt,
     clickCount: updated.clickCount,
     modificationCount: updated.modificationCount,
     lastModifiedAt: updated.lastModifiedAt,
-
     errorMessage
   };
 }
@@ -154,26 +143,21 @@ async function checkIntegrity(shortCode) {
 /**
  * Get full statistics for a link, including modification history.
  */
-function getLinkStats(shortCode) {
-  const record = db.prepare('SELECT * FROM links WHERE shortCode = ?').get(shortCode);
+async function getLinkStats(shortCode) {
+  const { data: record } = await supabase.from('links').select('*').eq('shortCode', shortCode).single();
   if (!record) return null;
 
-  const modifications = db.prepare(`
-    SELECT * FROM modifications WHERE shortCode = ? ORDER BY detectedAt DESC
-  `).all(shortCode);
-
-  const recentClicks = db.prepare(`
-    SELECT * FROM clicks WHERE shortCode = ? ORDER BY clickedAt DESC LIMIT 20
-  `).all(shortCode);
+  const { data: modifications } = await supabase.from('modifications').select('*').eq('shortCode', shortCode).order('detectedAt', { ascending: false });
+  const { data: recentClicks } = await supabase.from('clicks').select('*').eq('shortCode', shortCode).order('clickedAt', { ascending: false }).limit(20);
 
   return {
     ...formatLinkResponse(record, false),
-    modifications: modifications.map(m => ({
+    modifications: (modifications || []).map(m => ({
       detectedAt: m.detectedAt,
       previousHashPreview: hashPreview(m.previousHash),
       newHashPreview: hashPreview(m.newHash)
     })),
-    recentClicks,
+    recentClicks: recentClicks || [],
     modificationRate: record.clickCount > 0
       ? ((record.modificationCount / record.clickCount) * 100).toFixed(1)
       : 0
@@ -183,33 +167,45 @@ function getLinkStats(shortCode) {
 /**
  * Get all links for dashboard view.
  */
-function getAllLinks() {
-  const links = db.prepare(`
-    SELECT * FROM links ORDER BY createdAt DESC LIMIT 100
-  `).all();
-
-  return links.map(l => formatLinkResponse(l, false));
+async function getAllLinks() {
+  const { data: links } = await supabase.from('links').select('*').order('createdAt', { ascending: false }).limit(100);
+  return (links || []).map(l => formatLinkResponse(l, false));
 }
 
 /**
  * Get global statistics for the dashboard header.
  */
-function getGlobalStats() {
-  const totalLinks = db.prepare('SELECT COUNT(*) as count FROM links').get().count;
-  const totalClicks = db.prepare('SELECT SUM(clickCount) as total FROM links').get().total || 0;
-  const modifiedLinks = db.prepare('SELECT COUNT(*) as count FROM links WHERE modificationCount > 0').get().count;
-  const totalModifications = db.prepare('SELECT SUM(modificationCount) as total FROM links').get().total || 0;
+async function getGlobalStats() {
+  const { count: totalLinks } = await supabase.from('links').select('*', { count: 'exact', head: true });
+  
+  const { data: links } = await supabase.from('links').select('clickCount, modificationCount');
+  
+  let totalClicks = 0;
+  let modifiedLinks = 0;
+  let totalModifications = 0;
 
-  return { totalLinks, totalClicks, modifiedLinks, totalModifications };
+  if (links) {
+     for (const l of links) {
+       totalClicks += (Number(l.clickCount) || 0);
+       if ((Number(l.modificationCount) || 0) > 0) modifiedLinks++;
+       totalModifications += (Number(l.modificationCount) || 0);
+     }
+  }
+
+  return { 
+    totalLinks: totalLinks || 0, 
+    totalClicks, 
+    modifiedLinks, 
+    totalModifications 
+  };
 }
 
 /**
  * Delete a link and all associated records.
  */
-function deleteLink(shortCode) {
-  db.prepare('DELETE FROM modifications WHERE shortCode = ?').run(shortCode);
-  db.prepare('DELETE FROM clicks WHERE shortCode = ?').run(shortCode);
-  db.prepare('DELETE FROM links WHERE shortCode = ?').run(shortCode);
+async function deleteLink(shortCode) {
+  // We rely on Supabase cascading deletes (ON DELETE CASCADE) to clean up clicks and modifications
+  await supabase.from('links').delete().eq('shortCode', shortCode);
   return true;
 }
 

@@ -42,16 +42,8 @@ function validateAndNormalizeUrl(rawUrl) {
   // Validate using URL constructor
   const parsed = new URL(url);
 
-  // Block local/private URLs in production
-  const hostname = parsed.hostname;
-  if (
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname.startsWith('192.168.') ||
-    hostname.startsWith('10.')
-  ) {
-    throw new Error('Local/private URLs are not allowed');
-  }
+  // For this Patent Demo, we ALLOW localhost so you can test easily!
+  // In a real production deployment, you would block localhost/private IPs here.
 
   return url;
 }
