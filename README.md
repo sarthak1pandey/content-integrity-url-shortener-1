@@ -1,7 +1,5 @@
 # LinkGuard — Content-Integrity URL Shortener
 
-> **Patent Pending** — VIT Vellore, IPR & TT Cell (Document No. 02-IPR-R003)
-
 A URL shortening service that cryptographically verifies destination page content on every click. Detects and notifies users when shared content has been tampered with or modified.
 
 ---
@@ -45,21 +43,6 @@ For development with auto-reload:
 ```bash
 npm run dev
 ```
-
----
-
-## Deployment (Free — Railway)
-
-1. Create a free account at **railway.app**
-2. Click **"New Project"** → **"Deploy from GitHub"**
-3. Push this folder to a GitHub repo and connect it
-4. Add environment variable: `BASE_URL = https://your-app.railway.app`
-5. Deploy — it auto-detects Node.js and runs `npm start`
-
-Your app will be live at `https://your-app.railway.app` in ~2 minutes.
-
----
-
 ## Project Structure
 
 ```
@@ -178,16 +161,6 @@ The pipeline removes:
 - Related articles recommendations
 
 Only the **article body / main content** is hashed. This means only actual editorial content changes (rewrites, deletions, insertions) trigger a modification alert.
-
----
-
-## Patent Information
-
-- **Invention Title**: Content-Integrity-Aware URL Shortening System with Cryptographic Destination Page Snapshot and Tamper Indication
-- **Filed Via**: VIT Vellore, IPR & TT Cell
-- **Document**: 02-IPR-R003 (IDF-B)
-- **TRL**: 2 → moving to TRL 3 with this implementation
-- **Jurisdiction**: India (Chennai Patent Office) + PCT planned
 
 ---
 
