@@ -1,57 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard — LinkGuard</title>
+  <title>Dashboard — Shortt in</title>
   <link rel="stylesheet" href="/css/style.css">
   <style>
-    .page-header { padding: 48px 0 40px; }
-    .page-title { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 8px; }
-    .page-sub   { font-size: 0.95rem; color: var(--text-dim); }
+    .page-header {
+      padding: 48px 0 40px;
+    }
+
+    .page-title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+
+    .page-sub {
+      font-size: 0.95rem;
+      color: var(--text-dim);
+    }
 
     .toolbar {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 16px; flex-wrap: wrap;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
       margin-bottom: 24px;
     }
+
     .search-wrap {
-      display: flex; align-items: center; gap: 10px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 16px;
       transition: border-color var(--transition);
     }
-    .search-wrap:focus-within { border-color: rgba(0,229,255,0.3); }
-    .search-wrap input {
-      background: transparent; border: none; outline: none;
-      color: var(--text); font-family: var(--font-body); font-size: 0.9rem; width: 220px;
-    }
-    .search-wrap input::placeholder { color: var(--text-muted); }
 
-    .link-title-cell { max-width: 240px; }
-    .link-title-cell .title { font-size: 0.88rem; color: var(--text); }
-    .link-title-cell .url { font-size: 0.78rem; color: var(--text-muted); }
+    .search-wrap:focus-within {
+      border-color: rgba(0, 229, 255, 0.3);
+    }
+
+    .search-wrap input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      width: 220px;
+    }
+
+    .search-wrap input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .link-title-cell {
+      max-width: 240px;
+    }
+
+    .link-title-cell .title {
+      font-size: 0.88rem;
+      color: var(--text);
+    }
+
+    .link-title-cell .url {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
 
     .mod-count {
-      font-family: var(--font-mono); font-size: 0.88rem;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
     }
 
-    .action-btns { display: flex; gap: 6px; }
+    .action-btns {
+      display: flex;
+      gap: 6px;
+    }
 
     .loading-overlay {
-      display: flex; flex-direction: column; align-items: center; gap: 16px;
-      padding: 80px 24px; text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 80px 24px;
+      text-align: center;
     }
   </style>
 </head>
+
 <body>
   <div class="orb orb-1"></div>
   <div class="orb orb-2"></div>
 
   <nav class="navbar">
     <div class="navbar-brand">
-      <span>Link</span><span class="dot">Guard</span>
-      <span class="brand-badge">Patent Demo</span>
+      <span>Shortt</span><span class="dot">in</span>
+      <span class="brand-badge">safe and short</span>
     </div>
     <div class="navbar-links">
       <a href="/">Shorten</a>
@@ -91,15 +143,17 @@
     <div class="toolbar">
       <div class="search-wrap">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.35-4.35" />
         </svg>
         <input type="text" id="searchInput" placeholder="Search links...">
       </div>
       <div class="flex gap-8">
         <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
           </svg>
           Refresh
         </button>
@@ -122,7 +176,7 @@
   <footer style="border-top:1px solid var(--border); padding:24px 0; margin-top:60px; text-align:center">
     <div class="container">
       <p style="font-size:0.8rem; color:var(--text-muted)">
-        LinkGuard — Patent Demo &nbsp;|&nbsp; VIT Vellore IPR &amp; TT Cell
+        Shortt in — Content Integrity URL Shortener
       </p>
     </div>
   </footer>
@@ -198,8 +252,8 @@
           </td>
           <td>
             <div class="link-title-cell">
-              <div class="title" title="${link.title}">${link.title ? link.title.substring(0,45) + (link.title.length > 45 ? '…' : '') : '—'}</div>
-              <div class="url" title="${link.originalUrl}">${link.originalUrl.substring(0,50) + (link.originalUrl.length > 50 ? '…' : '')}</div>
+              <div class="title" title="${link.title}">${link.title ? link.title.substring(0, 45) + (link.title.length > 45 ? '…' : '') : '—'}</div>
+              <div class="url" title="${link.originalUrl}">${link.originalUrl.substring(0, 50) + (link.originalUrl.length > 50 ? '…' : '')}</div>
             </div>
           </td>
           <td>${statusBadge(link.integrityStatus)}</td>
@@ -260,4 +314,5 @@
     loadDashboard();
   </script>
 </body>
+
 </html>
